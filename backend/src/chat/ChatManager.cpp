@@ -5,6 +5,7 @@
 #include "utils/JsonUtils.hpp"
 
 #include <nlohmann/json.hpp>
+#include <chrono>
 #include <memory>
 
 namespace connectx {
@@ -113,6 +114,26 @@ bool ChatManager::handle_chat_message(const std::string& conversation_id,
                                       const std::string& sender_id,
                                       const std::string& content,
                                       const std::string& session_id) {
+    // Local mode remains usable when PostgreSQL is not configured.
+    if (!db_mgr_->is_connected()) {
+        const auto now = std::chrono::system_clock::now().time_since_epoch();
+        const auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(now).count();
+        json payload = {
+            {"id", "local-" + std::to_string(millis) + "-" + sender_id},
+            {"conversation_id", conversation_id},
+            {"sender_id", sender_id},
+            {"sender_username", sender_id.rfind("usr_", 0) == 0 ? sender_id.substr(4) : sender_id},
+            {"sender_display", sender_id.rfind("usr_", 0) == 0 ? sender_id.substr(4) : sender_id},
+            {"content", content},
+            {"created_at", std::to_string(millis)}
+        };
+        auto notification = json_utils::make_response("new_message", payload).dump();
+        // The sender already renders an optimistic copy in the UI. Exclude
+        // that user's sessions to prevent the message appearing twice.
+        broadcast_to_conversation(conversation_id, notification, sender_id);
+        return true;
+    }
+
     // Authorization: verify membership before persisting
     if (!db_mgr_->is_conversation_member(conversation_id, sender_id)) {
         auto err = json_utils::make_error("not_member",
@@ -141,7 +162,9 @@ bool ChatManager::handle_chat_message(const std::string& conversation_id,
         {"created_at",      msg.created_at}
     };
     auto notification = json_utils::make_response("new_message", payload).dump();
-    broadcast_to_conversation(conversation_id, notification);
+    // The sender already renders an optimistic copy in the UI, so avoid
+    // echoing the persisted message back to that sender.
+    broadcast_to_conversation(conversation_id, notification, sender_id);
     Logger::debug("Message {} saved in conversation {}", msg.id, conversation_id);
     return true;
 }
@@ -168,6 +191,18 @@ bool ChatManager::handle_load_history(const std::string& conversation_id,
                                       const std::string& session_id,
                                       int limit,
                                       const std::string& before_id) {
+    if (!db_mgr_->is_connected()) {
+        json data = {
+            {"conversation_id", conversation_id},
+            {"messages", json::array()},
+            {"has_more", false}
+        };
+        auto response = json_utils::make_response("history", data).dump();
+        auto sess = client_mgr_->get_session(session_id);
+        if (sess) sess->send(std::make_shared<std::string>(response));
+        return true;
+    }
+
     if (!db_mgr_->is_conversation_member(conversation_id, user_id)) {
         auto err = json_utils::make_error("not_member",
                                           "You are not a member of this conversation").dump();

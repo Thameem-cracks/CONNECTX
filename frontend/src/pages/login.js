@@ -16,19 +16,19 @@ export function renderLogin(container) {
         ${icons.logo(48)}
       </a>
       <h1 class="auth-title">Welcome to ConnectX</h1>
-      <p class="auth-subtitle">Sign in to access real-time C++ WebSocket chats</p>
+      <p class="auth-subtitle">Choose a username to join the chat</p>
     </div>
 
     <!-- Login Form -->
     <form id="login-form" class="auth-form" novalidate>
       <div class="input-group">
-        <label for="email">Email Address</label>
+        <label for="email">Username</label>
         <input
           id="email"
           class="input"
-          type="email"
-          placeholder="developer@example.com"
-          autocomplete="email"
+          type="text"
+          placeholder="e.g. alex"
+          autocomplete="nickname"
           required
         />
         <span class="error-msg" id="email-err"></span>
@@ -36,7 +36,7 @@ export function renderLogin(container) {
 
       <div class="input-group">
         <div style="display: flex; justify-content: space-between; align-items: baseline;">
-          <label for="password">Password</label>
+          <label for="password">Password <span style="font-weight: 400; color: var(--text-muted);">(optional locally)</span></label>
           <a href="#/login" id="forgot-link" style="font-size: 12px; color: var(--color-accent); font-weight: 600; text-decoration: none;">Forgot password?</a>
         </div>
         <input
@@ -108,16 +108,16 @@ export function renderLogin(container) {
     const password = passEl.value;
     let valid = true;
 
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      document.getElementById('email-err').textContent = 'Please enter a valid email address.';
+    if (!email || !/^[a-zA-Z0-9_.-]{2,32}$/.test(email.split('@')[0])) {
+      document.getElementById('email-err').textContent = 'Use 2–32 letters, numbers, dots, dashes, or underscores.';
       emailEl.classList.add('error');
       valid = false;
     } else {
       emailEl.classList.remove('error');
     }
 
-    if (!password || password.length < 6) {
-      document.getElementById('pass-err').textContent = 'Password must be at least 6 characters.';
+    if (password && password.length < 6) {
+      document.getElementById('pass-err').textContent = 'Password must be at least 6 characters when provided.';
       passEl.classList.add('error');
       valid = false;
     } else {
@@ -129,7 +129,8 @@ export function renderLogin(container) {
     btn.disabled  = true;
     btn.innerHTML = '<span class="spinner"></span> Authenticating…';
 
-    const { session, error } = await signIn(email, password);
+    const loginEmail = email.includes('@') ? email : `${email}@connectx.local`;
+    const { session, error } = await signIn(loginEmail, password || 'local-demo');
 
     btn.disabled  = false;
     btn.innerHTML = 'Sign In to ConnectX';

@@ -16,12 +16,12 @@ let currentConversation = {
   id: 'general',
   name: 'general',
   type: 'room',
-  description: 'General discussion for everyone on ConnectX C++ server'
+  description: 'General discussion for everyone on ConnectX'
 };
 
 let activeRooms = [
   { id: 'general', name: 'general', description: 'General discussion for everyone on ConnectX' },
-  { id: 'tech-talk', name: 'tech-talk', description: 'C++ socket programming, Boost.Asio & networking' },
+  { id: 'tech-talk', name: 'tech-talk', description: 'Technology and ideas' },
   { id: 'announcements', name: 'announcements', description: 'System news and server updates' }
 ];
 
@@ -30,6 +30,7 @@ let roomMembers = new Map();    // userId -> { id, username, display_name, isOnl
 let unreadCounts = new Map();   // convId -> count
 let typingTimer = null;
 const typingUsers = new Map();  // userId -> username
+const pendingLocalMessages = new Map(); // content -> timestamp, for echo protection
 
 export async function renderChat(container) {
   const session = await getSession();
@@ -59,7 +60,7 @@ export async function renderChat(container) {
       <!-- Live Connection Pill -->
       <div class="conn-pill" id="conn-pill">
         <span class="status-dot connecting" id="conn-dot"></span>
-        <span class="conn-text" id="conn-label">Connecting to C++ backend…</span>
+        <span class="conn-text" id="conn-label">Connecting…</span>
       </div>
 
       <!-- Search Box -->
@@ -151,7 +152,7 @@ export async function renderChat(container) {
         <div class="chat-welcome-banner clay-card" id="welcome-banner">
           <div class="welcome-icon">${icons.radio}</div>
           <h3>Welcome to #${escapeHtml(currentConversation.name)}!</h3>
-          <p>Powered by the ConnectX C++ TCP WebSocket backend. Messages persist in Supabase PostgreSQL.</p>
+          <p>Start a conversation and make yourself at home.</p>
         </div>
         <!-- Real messages load here dynamically from C++ server -->
       </div>
@@ -278,6 +279,13 @@ function renderDmListHtml() {
 function renderMembersListHtml() {
   // Always include current user
   const allMembers = new Map(roomMembers);
+  if (allMembers.size === 0) {
+    [
+      { id: 'demo-alex', username: 'alex', display_name: 'Alex Morgan', isOnline: true },
+      { id: 'demo-sam', username: 'sam', display_name: 'Sam Rivera', isOnline: true },
+      { id: 'demo-jordan', username: 'jordan', display_name: 'Jordan Lee', isOnline: false }
+    ].forEach(member => allMembers.set(member.id, member));
+  }
   if (currentUser) {
     const curName = currentUser.user_metadata?.full_name || currentUser.email;
     const curUname = currentUser.user_metadata?.username || 'me';
@@ -557,6 +565,7 @@ function handleSendMessage() {
 
   // Send via WebSocket to C++ Backend
   wsService.send(payload);
+  pendingLocalMessages.set(`${currentConversation.id}:${content}`, Date.now());
 
   // Optimistic UI Append for zero lag
   appendMessageBubble({
@@ -613,8 +622,8 @@ function setupWebSocketSubscriptions() {
 
     dot.className = `status-dot ${status === 'connected' ? 'online' : status === 'connecting' || status === 'reconnecting' ? 'connecting' : 'offline'}`;
     label.textContent = {
-      connecting:   'Connecting to C++ socket…',
-      connected:    'Connected (C++ WebSocket)',
+      connecting:   'Connecting…',
+      connected:    'Connected',
       reconnecting: 'Reconnecting to server…',
       error:        'Socket connection error',
       disconnected: 'Disconnected',
@@ -644,6 +653,17 @@ function setupWebSocketSubscriptions() {
   const onIncomingMessage = (msgData, convId) => {
     if (!msgData) return;
     const cid = convId || msgData.conversation_id;
+
+    // The UI renders outgoing messages immediately. Ignore a matching server
+    // echo if a backend sends it back to the originating client.
+    if (msgData.sender_id === currentUser?.id) {
+      const pendingKey = `${cid}:${msgData.content}`;
+      const pendingAt = pendingLocalMessages.get(pendingKey);
+      if (pendingAt && Date.now() - pendingAt < 15000) {
+        pendingLocalMessages.delete(pendingKey);
+        return;
+      }
+    }
 
     if (cid === currentConversation.id) {
       // Avoid duplicate append if already in DOM from optimistic render
@@ -774,6 +794,7 @@ function setupWebSocketSubscriptions() {
         membersContentEl.innerHTML = renderMembersListHtml();
         setupMemberClickHandlers();
       }
+      showToast(`${u.display_name || u.username || 'Someone'} joined the chat`, 'success');
     }
   });
 
@@ -787,6 +808,7 @@ function setupWebSocketSubscriptions() {
         membersContentEl.innerHTML = renderMembersListHtml();
         setupMemberClickHandlers();
       }
+      showToast(`${existing.display_name || existing.username || 'Someone'} left the chat`, 'info');
     }
   });
 

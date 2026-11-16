@@ -39,14 +39,8 @@ export async function renderSettings(container) {
         <button class="settings-nav-btn active" data-tab="profile">
           ${icons.users} Profile &amp; Account
         </button>
-        <button class="settings-nav-btn" data-tab="appearance">
-          ${icons.smile} Claymorphism Theme
-        </button>
         <button class="settings-nav-btn" data-tab="notifications">
           <span style="font-size: 16px;">🔔</span> Notifications
-        </button>
-        <button class="settings-nav-btn" data-tab="telemetry">
-          ${icons.cpu} C++ Backend Info
         </button>
       </nav>
 
@@ -110,46 +104,6 @@ export async function renderSettings(container) {
         </form>
       </section>
 
-      <!-- Appearance Tab -->
-      <section class="settings-tab-pane" id="tab-appearance" style="display: none;">
-        <div class="tab-pane-header">
-          <h2>Claymorphism Design System</h2>
-          <p>ConnectX uses a tactile, 75% white cloud-clay aesthetic</p>
-        </div>
-
-        <div class="clay-card settings-box">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-            <div>
-              <strong style="font-size: 15px; display: block;">75% White Cloud Clay (Active)</strong>
-              <span style="font-size: 13px; color: var(--text-muted);">Pillowy embossing, soft bevels, and multi-layered ambient shadows</span>
-            </div>
-            <span class="clay-badge clay-badge-accent">Default Theme</span>
-          </div>
-
-          <div class="palette-swatches" style="display: flex; gap: 12px; margin-bottom: 24px;">
-            <div class="swatch-pill" style="background: #FFFFFF; border: 1px solid #CBD5E1; color: #1E293B;">
-              <strong>75%</strong>
-              <span>White Clay</span>
-            </div>
-            <div class="swatch-pill" style="background: linear-gradient(135deg, #6366F1, #8B5CF6); color: #FFF;">
-              <strong>15%</strong>
-              <span>Electric Indigo</span>
-            </div>
-            <div class="swatch-pill" style="background: #1E293B; color: #FFF;">
-              <strong>10%</strong>
-              <span>Deep Slate</span>
-            </div>
-          </div>
-
-          <div class="clay-preview-widget clay-card" style="background: var(--clay-surface-subtle); padding: 18px;">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-              <span style="font-weight: 700; font-size: 14px;">Interactive Clay Component</span>
-              <button class="btn btn-primary btn-sm">Tactile Button</button>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <!-- Notifications Tab -->
       <section class="settings-tab-pane" id="tab-notifications" style="display: none;">
         <div class="tab-pane-header">
@@ -181,47 +135,6 @@ export async function renderSettings(container) {
               <span style="font-size: 12px; color: var(--text-muted);">Display unread badges on inactive rooms and direct messages</span>
             </div>
           </label>
-        </div>
-      </section>
-
-      <!-- C++ Telemetry Tab -->
-      <section class="settings-tab-pane" id="tab-telemetry" style="display: none;">
-        <div class="tab-pane-header">
-          <h2>C++ Networking Backend Info</h2>
-          <p>Live architectural specs of the ConnectX server</p>
-        </div>
-
-        <div class="clay-card settings-box">
-          <div class="telemetry-grid">
-            <div class="telemetry-item">
-              <span class="telemetry-label">Backend Language</span>
-              <strong class="telemetry-val">C++17 (ISO Standard)</strong>
-            </div>
-            <div class="telemetry-item">
-              <span class="telemetry-label">Socket Library</span>
-              <strong class="telemetry-val">Boost.Asio 1.74+</strong>
-            </div>
-            <div class="telemetry-item">
-              <span class="telemetry-label">WebSocket Stream</span>
-              <strong class="telemetry-val">Boost.Beast</strong>
-            </div>
-            <div class="telemetry-item">
-              <span class="telemetry-label">Database Client</span>
-              <strong class="telemetry-val">libpqxx (PostgreSQL)</strong>
-            </div>
-            <div class="telemetry-item">
-              <span class="telemetry-label">Concurrency Model</span>
-              <strong class="telemetry-val">std::thread Pool + Strands</strong>
-            </div>
-            <div class="telemetry-item">
-              <span class="telemetry-label">JSON Serialization</span>
-              <strong class="telemetry-val">nlohmann/json</strong>
-            </div>
-          </div>
-
-          <div style="margin-top: 20px; padding: 14px; background: var(--clay-surface-subtle); border-radius: var(--radius-md); font-size: 13px; color: var(--text-secondary);">
-            ⚡ <strong>Networking Note:</strong> Boost.Beast handles RFC 6455 framing and connection upgrades directly above native TCP sockets. All session I/O runs serialized on dedicated executor strands.
-          </div>
         </div>
       </section>
 
