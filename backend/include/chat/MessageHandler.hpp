@@ -59,6 +59,14 @@ private:
                             const nlohmann::json&          msg);
     void handle_load_history(std::shared_ptr<Session>     session,
                              const nlohmann::json&         msg);
+    void handle_list_rooms(std::shared_ptr<Session>        session,
+                           const nlohmann::json&           msg);
+    void handle_get_room_members(std::shared_ptr<Session>  session,
+                                 const nlohmann::json&     msg);
+    void handle_mark_read(std::shared_ptr<Session>         session,
+                          const nlohmann::json&            msg);
+    void handle_unread_count(std::shared_ptr<Session>      session,
+                             const nlohmann::json&         msg);
     void handle_ping(std::shared_ptr<Session>             session,
                      const nlohmann::json&                 msg);
 

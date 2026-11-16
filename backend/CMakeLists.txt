@@ -80,8 +80,10 @@ endif()
 # Link libpqxx
 if(libpqxx_FOUND)
   target_link_libraries(connectx PRIVATE libpqxx::pqxx)
+  target_compile_definitions(connectx PRIVATE HAVE_PQXX=1)
 elseif(LIBPQXX_FOUND)
   target_link_libraries(connectx PRIVATE PkgConfig::LIBPQXX)
+  target_compile_definitions(connectx PRIVATE HAVE_PQXX=1)
 endif()
 
 # ── Compiler warnings ─────────────────────────────────────────────────────────

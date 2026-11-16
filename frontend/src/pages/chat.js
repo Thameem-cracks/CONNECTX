@@ -1,6 +1,7 @@
 /**
- * ConnectX Main Chat Dashboard — Complete Claymorphic Single-Page Application
+ * ConnectX Main Chat Dashboard — Fully Functional Claymorphic SPA
  * 75% White / Cloud palette with 25% Violet / Slate contrast
+ * Fully wired to C++ Boost.Beast WebSocket Backend
  */
 
 import { signOut, getSession } from '../auth/session.js';
@@ -15,37 +16,27 @@ let currentConversation = {
   id: 'general',
   name: 'general',
   type: 'room',
-  description: 'General discussion for everyone on ConnectX C++ server',
-  members: []
+  description: 'General discussion for everyone on ConnectX C++ server'
 };
 
-let typingTimer = null;
-const typingUsers = new Map();
-
-// Mock initial rooms & demo members
-const rooms = [
+let activeRooms = [
   { id: 'general', name: 'general', description: 'General discussion for everyone on ConnectX' },
   { id: 'tech-talk', name: 'tech-talk', description: 'C++ socket programming, Boost.Asio & networking' },
   { id: 'announcements', name: 'announcements', description: 'System news and server updates' }
 ];
 
-const directMessages = [
-  { id: 'dm-alex', username: 'alex_dev', name: 'Alex Developer', status: 'online' },
-  { id: 'dm-sarah', username: 'sarah_cpp', name: 'Sarah Engineer', status: 'offline' }
-];
-
-const sampleMembers = [
-  { id: 'u1', name: 'Alex Developer', username: 'alex_dev', role: 'Maintainer', online: true },
-  { id: 'u2', name: 'Sarah Engineer', username: 'sarah_cpp', role: 'Member', online: false },
-  { id: 'u3', name: 'Networking Bot', username: 'boost_daemon', role: 'Bot', online: true }
-];
+let directMessages = new Map(); // id -> { id, username, name, isOnline, unreadCount }
+let roomMembers = new Map();    // userId -> { id, username, display_name, isOnline }
+let unreadCounts = new Map();   // convId -> count
+let typingTimer = null;
+const typingUsers = new Map();  // userId -> username
 
 export async function renderChat(container) {
   const session = await getSession();
   currentUser = session?.user || {
-    id: 'guest-' + Math.floor(Math.random() * 8999 + 1000),
+    id: 'guest_' + Math.floor(Math.random() * 8999 + 1000),
     email: 'guest@connectx.local',
-    user_metadata: { full_name: 'Guest Developer', username: 'guest_dev' }
+    user_metadata: { full_name: 'Guest Developer', username: 'guest_user' }
   };
 
   container.innerHTML = `
@@ -87,12 +78,7 @@ export async function renderChat(container) {
             </button>
           </div>
           <div class="channel-list" id="room-list">
-            ${rooms.map(r => `
-              <div class="channel-item ${r.id === currentConversation.id ? 'active' : ''}" data-type="room" data-id="${r.id}" data-name="${escapeHtml(r.name)}" data-desc="${escapeHtml(r.description)}">
-                <span class="channel-icon">${icons.hash}</span>
-                <span class="channel-label">${escapeHtml(r.name)}</span>
-              </div>
-            `).join('')}
+            ${renderRoomListHtml()}
           </div>
         </div>
 
@@ -100,20 +86,12 @@ export async function renderChat(container) {
         <div class="channel-section" style="margin-top: 14px;">
           <div class="channel-section__head">
             <span>Direct Messages</span>
-            <button class="btn btn-icon btn-ghost btn-mini" id="new-dm-btn" title="New message">
+            <button class="btn btn-icon btn-ghost btn-mini" id="new-dm-btn" title="New direct message">
               ${icons.plus}
             </button>
           </div>
           <div class="channel-list" id="dm-list">
-            ${directMessages.map(dm => `
-              <div class="channel-item" data-type="dm" data-id="${dm.id}" data-name="${escapeHtml(dm.name)}" data-desc="Direct conversation with @${escapeHtml(dm.username)}">
-                <div class="channel-avatar">
-                  ${getInitials(dm.name)}
-                  <span class="status-dot ${dm.status} mini-dot"></span>
-                </div>
-                <span class="channel-label">${escapeHtml(dm.name)}</span>
-              </div>
-            `).join('')}
+            ${renderDmListHtml()}
           </div>
         </div>
       </div>
@@ -152,17 +130,17 @@ export async function renderChat(container) {
           <div class="header-titles">
             <div class="header-name-row">
               <span class="header-prefix" id="conv-prefix">#</span>
-              <h2 class="header-name" id="conv-name">general</h2>
+              <h2 class="header-name" id="conv-name">${escapeHtml(currentConversation.name)}</h2>
               <span class="clay-badge clay-badge-accent" id="conv-badge" style="font-size: 11px;">Public Room</span>
             </div>
-            <p class="header-desc" id="conv-desc">General discussion for everyone on ConnectX</p>
+            <p class="header-desc" id="conv-desc">${escapeHtml(currentConversation.description)}</p>
           </div>
         </div>
 
         <div class="header-right">
           <button class="btn btn-secondary btn-sm" id="toggle-members-btn" title="Toggle participant members">
             ${icons.users}
-            <span class="hide-mobile" id="members-count-badge">3 Members</span>
+            <span class="hide-mobile" id="members-count-badge">Members</span>
           </button>
         </div>
       </header>
@@ -170,40 +148,12 @@ export async function renderChat(container) {
       <!-- Message History Scroll Area -->
       <div class="messages-container" id="messages-container">
         <!-- Welcoming Clay Banner -->
-        <div class="chat-welcome-banner clay-card">
+        <div class="chat-welcome-banner clay-card" id="welcome-banner">
           <div class="welcome-icon">${icons.radio}</div>
           <h3>Welcome to #${escapeHtml(currentConversation.name)}!</h3>
-          <p>This room is powered by the ConnectX multithreaded C++ TCP WebSocket server. Messages persist to Supabase PostgreSQL.</p>
+          <p>Powered by the ConnectX C++ TCP WebSocket backend. Messages persist in Supabase PostgreSQL.</p>
         </div>
-
-        <!-- Sample initial messages -->
-        <div class="message-bubble received">
-          <div class="msg-avatar">${getInitials('Alex Developer')}</div>
-          <div class="msg-content-wrapper">
-            <div class="msg-meta">
-              <span class="msg-author">Alex Developer</span>
-              <span class="msg-role-tag">Maintainer</span>
-              <span class="msg-timestamp">${formatTimestamp(new Date(Date.now() - 3600000).toISOString())}</span>
-            </div>
-            <div class="msg-bubble-clay">
-              Welcome to ConnectX! The C++ backend server is accepting connections over TCP sockets.
-            </div>
-          </div>
-        </div>
-
-        <div class="message-bubble received">
-          <div class="msg-avatar" style="background: linear-gradient(135deg, #10B981, #059669);">${getInitials('Networking Bot')}</div>
-          <div class="msg-content-wrapper">
-            <div class="msg-meta">
-              <span class="msg-author">Networking Bot</span>
-              <span class="msg-role-tag bot">Bot</span>
-              <span class="msg-timestamp">${formatTimestamp(new Date(Date.now() - 1800000).toISOString())}</span>
-            </div>
-            <div class="msg-bubble-clay">
-              Boost.Beast WebSocket stream active. Keepalive ping/pong interval: 25s.
-            </div>
-          </div>
-        </div>
+        <!-- Real messages load here dynamically from C++ server -->
       </div>
 
       <!-- Typing Indicator -->
@@ -211,7 +161,7 @@ export async function renderChat(container) {
         <div class="typing-indicator-dots">
           <span></span><span></span><span></span>
         </div>
-        <span class="typing-label" id="typing-label">Alex Developer is typing…</span>
+        <span class="typing-label" id="typing-label">Someone is typing…</span>
       </div>
 
       <!-- Emoji Quick Tray (Collapsible) -->
@@ -263,45 +213,7 @@ export async function renderChat(container) {
       </div>
 
       <div class="members-sections-scroll" id="members-list-content">
-        <!-- Online Members -->
-        <div class="members-category">
-          <span class="members-category__title">Online — 2</span>
-          <div class="member-item" data-member="alex">
-            <div class="member-avatar">
-              ${getInitials('Alex Developer')}
-              <span class="status-dot online mini-dot"></span>
-            </div>
-            <div class="member-details">
-              <span class="member-name">Alex Developer</span>
-              <span class="member-tag">Maintainer</span>
-            </div>
-          </div>
-          <div class="member-item" data-member="bot">
-            <div class="member-avatar" style="background: linear-gradient(135deg, #10B981, #059669);">
-              ${getInitials('Networking Bot')}
-              <span class="status-dot online mini-dot"></span>
-            </div>
-            <div class="member-details">
-              <span class="member-name">Networking Bot</span>
-              <span class="member-tag">Automated</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Offline Members -->
-        <div class="members-category" style="margin-top: 16px;">
-          <span class="members-category__title">Offline — 1</span>
-          <div class="member-item offline" data-member="sarah">
-            <div class="member-avatar" style="opacity: 0.7;">
-              ${getInitials('Sarah Engineer')}
-              <span class="status-dot offline mini-dot"></span>
-            </div>
-            <div class="member-details">
-              <span class="member-name">Sarah Engineer</span>
-              <span class="member-tag">Member</span>
-            </div>
-          </div>
-        </div>
+        ${renderMembersListHtml()}
       </div>
     </aside>
 
@@ -318,6 +230,108 @@ export async function renderChat(container) {
   // Connect to C++ WebSocket backend
   wsService.connect();
   setupWebSocketSubscriptions();
+
+  // Load initial history and rooms
+  setTimeout(() => {
+    wsService.send({ type: 'list_rooms' });
+    wsService.send({ type: 'load_history', conversation_id: currentConversation.id, limit: 50 });
+    wsService.send({ type: 'get_room_members', room_id: currentConversation.id });
+  }, 250);
+}
+
+function renderRoomListHtml() {
+  return activeRooms.map(r => {
+    const isActive = r.id === currentConversation.id;
+    const unread = unreadCounts.get(r.id) || 0;
+    return `
+      <div class="channel-item ${isActive ? 'active' : ''}" data-type="room" data-id="${r.id}" data-name="${escapeHtml(r.name)}" data-desc="${escapeHtml(r.description || '')}">
+        <span class="channel-icon">${icons.hash}</span>
+        <span class="channel-label">${escapeHtml(r.name)}</span>
+        ${unread > 0 ? `<span class="clay-unread-badge">${unread}</span>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+function renderDmListHtml() {
+  if (directMessages.size === 0) {
+    return `<div style="padding: 10px 14px; font-size: 12px; color: var(--text-dim);">No direct messages yet. Click + to start one!</div>`;
+  }
+  let html = '';
+  directMessages.forEach((dm) => {
+    const isActive = dm.id === currentConversation.id;
+    const unread = unreadCounts.get(dm.id) || 0;
+    html += `
+      <div class="channel-item ${isActive ? 'active' : ''}" data-type="dm" data-id="${dm.id}" data-name="${escapeHtml(dm.name)}" data-desc="Direct conversation with @${escapeHtml(dm.username)}">
+        <div class="channel-avatar">
+          ${getInitials(dm.name)}
+          <span class="status-dot ${dm.isOnline ? 'online' : 'offline'} mini-dot"></span>
+        </div>
+        <span class="channel-label">${escapeHtml(dm.name)}</span>
+        ${unread > 0 ? `<span class="clay-unread-badge">${unread}</span>` : ''}
+      </div>
+    `;
+  });
+  return html;
+}
+
+function renderMembersListHtml() {
+  // Always include current user
+  const allMembers = new Map(roomMembers);
+  if (currentUser) {
+    const curName = currentUser.user_metadata?.full_name || currentUser.email;
+    const curUname = currentUser.user_metadata?.username || 'me';
+    allMembers.set(currentUser.id, {
+      id: currentUser.id,
+      username: curUname,
+      display_name: curName + ' (You)',
+      isOnline: true
+    });
+  }
+
+  const onlineList = [];
+  const offlineList = [];
+
+  allMembers.forEach(m => {
+    if (m.isOnline) onlineList.push(m);
+    else offlineList.push(m);
+  });
+
+  return `
+    <div class="members-category">
+      <span class="members-category__title">Online — ${onlineList.length}</span>
+      ${onlineList.map(m => `
+        <div class="member-item" data-uid="${m.id}" data-name="${escapeHtml(m.display_name)}" data-username="${escapeHtml(m.username)}" style="cursor: pointer;">
+          <div class="member-avatar">
+            ${getInitials(m.display_name)}
+            <span class="status-dot online mini-dot"></span>
+          </div>
+          <div class="member-details">
+            <span class="member-name">${escapeHtml(m.display_name)}</span>
+            <span class="member-tag">@${escapeHtml(m.username)}</span>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+
+    ${offlineList.length > 0 ? `
+      <div class="members-category" style="margin-top: 16px;">
+        <span class="members-category__title">Offline — ${offlineList.length}</span>
+        ${offlineList.map(m => `
+          <div class="member-item offline" data-uid="${m.id}" data-name="${escapeHtml(m.display_name)}" data-username="${escapeHtml(m.username)}" style="cursor: pointer;">
+            <div class="member-avatar" style="opacity: 0.7;">
+              ${getInitials(m.display_name)}
+              <span class="status-dot offline mini-dot"></span>
+            </div>
+            <div class="member-details">
+              <span class="member-name">${escapeHtml(m.display_name)}</span>
+              <span class="member-tag">@${escapeHtml(m.username)}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    ` : ''}
+  `;
 }
 
 function attachChatEventListeners() {
@@ -355,8 +369,11 @@ function attachChatEventListeners() {
   // New DM Modal
   document.getElementById('new-dm-btn')?.addEventListener('click', openNewDmModal);
 
-  // Channel Item clicks (Rooms and DMs)
+  // Channel Item clicks
   setupChannelClickHandlers();
+
+  // Member Item clicks to start direct message
+  setupMemberClickHandlers();
 
   // Sending Messages
   const sendBtn   = document.getElementById('send-message-btn');
@@ -435,9 +452,47 @@ function setupChannelClickHandlers() {
       const type = item.dataset.type;
       const desc = item.dataset.desc;
 
+      // Clear unread count for this conversation
+      unreadCounts.set(id, 0);
+      const unreadBadge = item.querySelector('.clay-unread-badge');
+      if (unreadBadge) unreadBadge.remove();
+
       switchConversation(id, name, type, desc);
 
       // On mobile, close left sidebar on selection
+      document.getElementById('sidebar-left')?.classList.remove('mobile-open');
+    });
+  });
+}
+
+function setupMemberClickHandlers() {
+  document.querySelectorAll('.member-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const targetUid = item.dataset.uid;
+      const targetName = item.dataset.name;
+      const targetUname = item.dataset.username;
+
+      if (!targetUid || targetUid === currentUser?.id) return;
+
+      const dmId = 'dm-' + (currentUser.id < targetUid ? currentUser.id + '-' + targetUid : targetUid + '-' + currentUser.id);
+
+      // Add to directMessages map
+      directMessages.set(dmId, {
+        id: dmId,
+        targetUid,
+        username: targetUname,
+        name: targetName,
+        isOnline: true
+      });
+
+      // Update dm list
+      const dmListEl = document.getElementById('dm-list');
+      if (dmListEl) {
+        dmListEl.innerHTML = renderDmListHtml();
+        setupChannelClickHandlers();
+      }
+
+      switchConversation(dmId, targetName, 'dm', `Direct conversation with @${targetUname}`);
       document.getElementById('sidebar-left')?.classList.remove('mobile-open');
     });
   });
@@ -458,13 +513,13 @@ function switchConversation(id, name, type, desc) {
   if (badgeEl)  badgeEl.textContent = type === 'room' ? 'Public Room' : 'Direct Message';
   if (txtarea)  txtarea.placeholder = `Type your message to ${type === 'room' ? '#' : '@'}${name}…`;
 
-  // Clear messages and load history
+  // Render welcome banner
   const container = document.getElementById('messages-container');
   if (container) {
     container.innerHTML = `
       <div class="chat-welcome-banner clay-card">
         <div class="welcome-icon">${type === 'room' ? icons.hash : icons.users}</div>
-        <h3>${type === 'room' ? 'Start of #' + escapeHtml(name) : 'Direct message with ' + escapeHtml(name)}</h3>
+        <h3>${type === 'room' ? 'Start of #' + escapeHtml(name) : 'Direct conversation with ' + escapeHtml(name)}</h3>
         <p>${escapeHtml(desc)}</p>
       </div>
     `;
@@ -472,6 +527,11 @@ function switchConversation(id, name, type, desc) {
 
   // Request history from C++ server
   wsService.send({ type: 'load_history', conversation_id: id, limit: 50 });
+
+  // If room, request room members
+  if (type === 'room') {
+    wsService.send({ type: 'get_room_members', room_id: id });
+  }
 }
 
 function handleSendMessage() {
@@ -487,7 +547,12 @@ function handleSendMessage() {
   };
 
   if (currentConversation.type === 'dm') {
-    payload.recipient_user_id = currentConversation.id;
+    // If DM, check target UID
+    const dmInfo = directMessages.get(currentConversation.id);
+    if (dmInfo?.targetUid) {
+      payload.recipient_id = dmInfo.targetUid;
+      payload.recipient_user_id = dmInfo.targetUid;
+    }
   }
 
   // Send via WebSocket to C++ Backend
@@ -496,6 +561,7 @@ function handleSendMessage() {
   // Optimistic UI Append for zero lag
   appendMessageBubble({
     id: 'local-' + Date.now(),
+    conversation_id: currentConversation.id,
     sender_id: currentUser?.id,
     sender_name: currentUser?.user_metadata?.full_name || currentUser?.email || 'You',
     content,
@@ -513,7 +579,7 @@ function appendMessageBubble(msg) {
   if (!container) return;
 
   const isOwn = msg.isOwn || msg.sender_id === currentUser?.id;
-  const senderName = isOwn ? 'You' : (msg.sender_name || msg.sender_username || 'User');
+  const senderName = isOwn ? 'You' : (msg.sender_display || msg.sender_display_name || msg.sender_name || msg.sender_username || 'User');
 
   const bubble = document.createElement('div');
   bubble.className = `message-bubble ${isOwn ? 'sent' : 'received'}`;
@@ -557,47 +623,203 @@ function setupWebSocketSubscriptions() {
     if (pill) {
       pill.style.background = status === 'connected' ? 'var(--color-success-light)' : 'var(--clay-surface-subtle)';
     }
-  });
 
-  // Incoming Messages
-  wsService.on('message_received', (evt) => {
-    if (evt.conversation_id === currentConversation.id && evt.message) {
-      appendMessageBubble({
-        ...evt.message,
-        isOwn: evt.message.sender_id === currentUser?.id
-      });
+    if (status === 'connected') {
+      wsService.send({ type: 'list_rooms' });
+      wsService.send({ type: 'load_history', conversation_id: currentConversation.id, limit: 50 });
+      wsService.send({ type: 'get_room_members', room_id: currentConversation.id });
     }
   });
 
-  wsService.on('private_message', (evt) => {
-    if (evt.conversation_id === currentConversation.id && evt.message) {
+  // Authenticated confirmation from C++
+  wsService.on('authenticated', (msg) => {
+    const u = msg.data || msg.user;
+    if (u) {
+      console.log('[ConnectX] Authenticated on C++ server as:', u.user_id || u.id);
+    }
+    wsService.send({ type: 'list_rooms' });
+  });
+
+  // Incoming Messages (Both new_message and message_received envelopes)
+  const onIncomingMessage = (msgData, convId) => {
+    if (!msgData) return;
+    const cid = convId || msgData.conversation_id;
+
+    if (cid === currentConversation.id) {
+      // Avoid duplicate append if already in DOM from optimistic render
+      if (msgData.id && document.querySelector(`.message-bubble[data-id="${msgData.id}"]`)) return;
       appendMessageBubble({
-        ...evt.message,
-        isOwn: evt.message.sender_id === currentUser?.id
+        ...msgData,
+        isOwn: msgData.sender_id === currentUser?.id
       });
+      // Mark read
+      if (msgData.id) {
+        wsService.send({ type: 'mark_read', message_id: msgData.id });
+      }
+    } else {
+      // Increment unread count for inactive conversation
+      const current = unreadCounts.get(cid) || 0;
+      unreadCounts.set(cid, current + 1);
+
+      // Add to DM list if it was a private message
+      if (cid && cid.startsWith('dm-') && !directMessages.has(cid)) {
+        directMessages.set(cid, {
+          id: cid,
+          username: msgData.sender_username || 'user',
+          name: msgData.sender_display || msgData.sender_username || 'User',
+          isOnline: true
+        });
+      }
+
+      // Re-render channel items
+      const roomListEl = document.getElementById('room-list');
+      const dmListEl = document.getElementById('dm-list');
+      if (roomListEl) roomListEl.innerHTML = renderRoomListHtml();
+      if (dmListEl) dmListEl.innerHTML = renderDmListHtml();
+      setupChannelClickHandlers();
+
+      showToast(`New message in ${cid.startsWith('dm-') ? '@' + (msgData.sender_display || 'User') : '#' + cid}: "${msgData.content.slice(0, 32)}..."`, 'info');
+    }
+  };
+
+  wsService.on('new_message', (evt) => {
+    const msg = evt.data || evt.message || evt;
+    onIncomingMessage(msg, evt.conversation_id || msg.conversation_id);
+  });
+
+  wsService.on('message_received', (evt) => {
+    const msg = evt.data || evt.message || evt;
+    onIncomingMessage(msg, evt.conversation_id || msg.conversation_id);
+  });
+
+  wsService.on('private_message', (evt) => {
+    const msg = evt.data || evt.message || evt;
+    onIncomingMessage(msg, evt.conversation_id || msg.conversation_id);
+  });
+
+  // History payload loaded from PostgreSQL / C++
+  wsService.on('history', (evt) => {
+    const data = evt.data || evt;
+    if (data.conversation_id === currentConversation.id && Array.isArray(data.messages)) {
+      const container = document.getElementById('messages-container');
+      if (container) {
+        // Keep welcome banner
+        container.innerHTML = `
+          <div class="chat-welcome-banner clay-card">
+            <div class="welcome-icon">${currentConversation.type === 'room' ? icons.hash : icons.users}</div>
+            <h3>${currentConversation.type === 'room' ? 'Start of #' + escapeHtml(currentConversation.name) : 'Direct conversation with ' + escapeHtml(currentConversation.name)}</h3>
+            <p>${escapeHtml(currentConversation.description)}</p>
+          </div>
+        `;
+        data.messages.forEach(m => {
+          appendMessageBubble({
+            ...m,
+            isOwn: m.sender_id === currentUser?.id
+          });
+        });
+      }
+    }
+  });
+
+  // Room list loaded from C++ server
+  wsService.on('room_list', (evt) => {
+    const list = evt.rooms || evt.data?.rooms;
+    if (Array.isArray(list) && list.length > 0) {
+      activeRooms = list;
+      const roomListEl = document.getElementById('room-list');
+      if (roomListEl) {
+        roomListEl.innerHTML = renderRoomListHtml();
+        setupChannelClickHandlers();
+      }
+    }
+  });
+
+  // Room members loaded from C++ server
+  wsService.on('room_members', (evt) => {
+    const members = evt.members || evt.data?.members;
+    if (Array.isArray(members)) {
+      roomMembers.clear();
+      members.forEach(m => {
+        roomMembers.set(m.id, {
+          id: m.id,
+          username: m.username || m.id,
+          display_name: m.display_name || m.username || 'User',
+          isOnline: m.is_online !== undefined ? m.is_online : true
+        });
+      });
+      const membersContentEl = document.getElementById('members-list-content');
+      if (membersContentEl) {
+        membersContentEl.innerHTML = renderMembersListHtml();
+        setupMemberClickHandlers();
+      }
+      const countBadge = document.getElementById('members-count-badge');
+      if (countBadge) {
+        countBadge.textContent = `${roomMembers.size + 1} Members`;
+      }
+    }
+  });
+
+  // Live User Presence events
+  wsService.on('user_online', (evt) => {
+    const u = evt.data || evt;
+    if (u.user_id && u.user_id !== currentUser?.id) {
+      roomMembers.set(u.user_id, {
+        id: u.user_id,
+        username: u.username || u.user_id,
+        display_name: u.display_name || u.username || 'User',
+        isOnline: true
+      });
+      const membersContentEl = document.getElementById('members-list-content');
+      if (membersContentEl) {
+        membersContentEl.innerHTML = renderMembersListHtml();
+        setupMemberClickHandlers();
+      }
+    }
+  });
+
+  wsService.on('user_offline', (evt) => {
+    const u = evt.data || evt;
+    if (u.user_id && roomMembers.has(u.user_id)) {
+      const existing = roomMembers.get(u.user_id);
+      existing.isOnline = false;
+      const membersContentEl = document.getElementById('members-list-content');
+      if (membersContentEl) {
+        membersContentEl.innerHTML = renderMembersListHtml();
+        setupMemberClickHandlers();
+      }
     }
   });
 
   // Typing notifications
   wsService.on('typing_start', (evt) => {
-    if (evt.conversation_id === currentConversation.id) {
-      typingUsers.set(evt.user_id, evt.username);
+    const data = evt.data || evt;
+    if (data.conversation_id === currentConversation.id && data.user_id !== currentUser?.id) {
+      typingUsers.set(data.user_id, data.username || 'Someone');
       updateTypingBar();
     }
   });
 
   wsService.on('typing_stop', (evt) => {
-    if (evt.conversation_id === currentConversation.id) {
-      typingUsers.delete(evt.user_id);
+    const data = evt.data || evt;
+    if (data.conversation_id === currentConversation.id) {
+      typingUsers.delete(data.user_id);
       updateTypingBar();
     }
   });
 
   // Room creation broadcast
   wsService.on('room_created', (evt) => {
-    if (evt.room) {
-      addRoomItemToSidebar(evt.room);
-      showToast(`New room #${evt.room.name} created!`, 'success');
+    const room = evt.room || evt.data;
+    if (room && room.name) {
+      if (!activeRooms.some(r => r.id === room.id)) {
+        activeRooms.push(room);
+        const roomListEl = document.getElementById('room-list');
+        if (roomListEl) {
+          roomListEl.innerHTML = renderRoomListHtml();
+          setupChannelClickHandlers();
+        }
+      }
+      showToast(`New room #${room.name} created!`, 'success');
     }
   });
 }
@@ -616,26 +838,6 @@ function updateTypingBar() {
   }
 }
 
-function addRoomItemToSidebar(room) {
-  const list = document.getElementById('room-list');
-  if (!list) return;
-
-  const item = document.createElement('div');
-  item.className = 'channel-item';
-  item.dataset.type = 'room';
-  item.dataset.id = room.id;
-  item.dataset.name = room.name;
-  item.dataset.desc = room.description || '';
-
-  item.innerHTML = `
-    <span class="channel-icon">${icons.hash}</span>
-    <span class="channel-label">${escapeHtml(room.name)}</span>
-  `;
-
-  list.appendChild(item);
-  setupChannelClickHandlers();
-}
-
 /* ─── Clay Modals ──────────────────────────────────────────────────────────── */
 function openCreateRoomModal() {
   const modalRoot = document.getElementById('modal-root');
@@ -651,11 +853,11 @@ function openCreateRoomModal() {
         <form id="create-room-form">
           <div class="input-group" style="margin-bottom: 16px;">
             <label for="new-room-name">Room Name</label>
-            <input class="input" id="new-room-name" type="text" placeholder="e.g. dev-discussion" required />
+            <input class="input" id="new-room-name" type="text" placeholder="e.g. distributed-systems" required />
           </div>
           <div class="input-group" style="margin-bottom: 24px;">
             <label for="new-room-desc">Description</label>
-            <input class="input" id="new-room-desc" type="text" placeholder="What is this room about?" />
+            <input class="input" id="new-room-desc" type="text" placeholder="What is this channel about?" />
           </div>
           <div style="display: flex; gap: 10px; justify-content: flex-end;">
             <button type="button" class="btn btn-secondary" id="modal-cancel-btn">Cancel</button>
@@ -677,8 +879,6 @@ function openCreateRoomModal() {
     if (!name) return;
 
     wsService.send({ type: 'create_room', name, description: desc });
-    addRoomItemToSidebar({ id: name.toLowerCase().replace(/\s+/g, '-'), name, description: desc });
-    showToast(`Room #${name} created!`, 'success');
     closeModal();
   });
 }
@@ -695,24 +895,12 @@ function openNewDmModal() {
           <button class="btn btn-icon btn-ghost btn-mini" id="dm-modal-close">${icons.close}</button>
         </div>
         <div class="input-group" style="margin-bottom: 16px;">
-          <label>Find User by Username</label>
-          <input class="input" id="dm-user-search" type="text" placeholder="Type username..." />
+          <label>Enter Recipient Username or User ID</label>
+          <input class="input" id="dm-user-search" type="text" placeholder="e.g. alex_dev or user id..." />
         </div>
-        <div class="dm-candidate-list" style="max-height: 200px; overflow-y: auto; margin-bottom: 20px;">
-          <div class="member-item" data-username="alex_dev" data-name="Alex Developer" style="cursor: pointer;">
-            <div class="member-avatar">${getInitials('Alex Developer')}</div>
-            <div class="member-details">
-              <span class="member-name">Alex Developer</span>
-              <span class="member-tag">@alex_dev</span>
-            </div>
-          </div>
-          <div class="member-item" data-username="sarah_cpp" data-name="Sarah Engineer" style="cursor: pointer; margin-top: 8px;">
-            <div class="member-avatar">${getInitials('Sarah Engineer')}</div>
-            <div class="member-details">
-              <span class="member-name">Sarah Engineer</span>
-              <span class="member-tag">@sarah_cpp</span>
-            </div>
-          </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+          <button type="button" class="btn btn-secondary" id="dm-modal-cancel">Cancel</button>
+          <button type="button" class="btn btn-primary" id="dm-modal-start">Start Chat</button>
         </div>
       </div>
     </div>
@@ -720,14 +908,31 @@ function openNewDmModal() {
 
   const closeModal = () => { modalRoot.innerHTML = ''; };
   document.getElementById('dm-modal-close')?.addEventListener('click', closeModal);
+  document.getElementById('dm-modal-cancel')?.addEventListener('click', closeModal);
 
-  document.querySelectorAll('.dm-candidate-list .member-item').forEach(el => {
-    el.addEventListener('click', () => {
-      const name = el.dataset.name;
-      const uname = el.dataset.username;
-      switchConversation('dm-' + uname, name, 'dm', `Direct conversation with @${uname}`);
-      closeModal();
+  document.getElementById('dm-modal-start')?.addEventListener('click', () => {
+    const inputVal = document.getElementById('dm-user-search')?.value.trim();
+    if (!inputVal) return;
+
+    const targetUid = inputVal;
+    const dmId = 'dm-' + (currentUser.id < targetUid ? currentUser.id + '-' + targetUid : targetUid + '-' + currentUser.id);
+
+    directMessages.set(dmId, {
+      id: dmId,
+      targetUid,
+      username: targetUid,
+      name: targetUid,
+      isOnline: true
     });
+
+    const dmListEl = document.getElementById('dm-list');
+    if (dmListEl) {
+      dmListEl.innerHTML = renderDmListHtml();
+      setupChannelClickHandlers();
+    }
+
+    switchConversation(dmId, targetUid, 'dm', `Direct conversation with @${targetUid}`);
+    closeModal();
   });
 }
 
@@ -923,6 +1128,7 @@ function injectChatClayStyles() {
   cursor: pointer;
   transition: all var(--transition);
   border: 1px solid transparent;
+  position: relative;
 }
 
 .channel-item:hover {
@@ -965,6 +1171,17 @@ function injectChatClayStyles() {
   right: -2px;
   width: 8px;
   height: 8px;
+}
+
+.clay-unread-badge {
+  margin-left: auto;
+  background: var(--color-accent);
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  box-shadow: 1px 2px 5px rgba(99, 102, 241, 0.4);
 }
 
 .sidebar-footer {
@@ -1143,19 +1360,6 @@ function injectChatClayStyles() {
   font-size: 13px;
   font-weight: 700;
   color: var(--text-primary);
-}
-
-.msg-role-tag {
-  font-size: 10px;
-  font-weight: 700;
-  background: var(--color-accent-light);
-  color: var(--color-accent);
-  padding: 2px 6px;
-  border-radius: var(--radius-pill);
-}
-.msg-role-tag.bot {
-  background: var(--color-success-light);
-  color: #065F46;
 }
 
 .msg-timestamp {

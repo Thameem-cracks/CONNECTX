@@ -230,18 +230,41 @@ void ChatManager::handle_typing_stop(const std::string& conversation_id,
 void ChatManager::broadcast_to_conversation(const std::string& conversation_id,
                                             const std::string& json_payload,
                                             const std::string& exclude_user_id) {
-    // Resolve conversation members from DB
-    auto members = db_mgr_->get_room_members(conversation_id);  // works for rooms
-    if (members.empty()) {
-        // For direct conversations, fetch member list differently
-        // (Phase 2 will add get_conversation_members to DatabaseManager)
-        Logger::debug("broadcast_to_conversation: member resolution pending Phase 2 for DMs.");
+    auto msg_ptr = std::make_shared<std::string>(json_payload);
+
+    // Direct Conversation Handling:
+    if (conversation_id.rfind("dm-", 0) == 0) {
+        // Conversation ID is in format dm-userA-userB or custom UUID
+        std::string tail = conversation_id.substr(3);
+        auto delim = tail.find('-');
+        if (delim != std::string::npos) {
+            std::string user_a = tail.substr(0, delim);
+            std::string user_b = tail.substr(delim + 1);
+            if (user_a != exclude_user_id) client_mgr_->send_to_user(user_a, msg_ptr);
+            if (user_b != exclude_user_id && user_b != user_a) client_mgr_->send_to_user(user_b, msg_ptr);
+            return;
+        }
     }
 
-    auto msg_ptr = std::make_shared<std::string>(json_payload);
-    for (const auto& member : members) {
-        if (member.id == exclude_user_id) continue;
-        client_mgr_->send_to_user(member.id, msg_ptr);
+    // Room Handling:
+    auto members = db_mgr_->get_room_members(conversation_id);
+    if (!members.empty()) {
+        for (const auto& member : members) {
+            if (member.id == exclude_user_id) continue;
+            client_mgr_->send_to_user(member.id, msg_ptr);
+        }
+    } else {
+        // If room membership is open/public or initial demo, broadcast to all connected sessions
+        if (exclude_user_id.empty()) {
+            client_mgr_->broadcast(msg_ptr);
+        } else {
+            auto online_ids = client_mgr_->online_user_ids();
+            for (const auto& uid : online_ids) {
+                if (uid != exclude_user_id) {
+                    client_mgr_->send_to_user(uid, msg_ptr);
+                }
+            }
+        }
     }
 }
 

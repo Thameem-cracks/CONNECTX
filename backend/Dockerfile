@@ -43,7 +43,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl3 \
     libboost-system1.74.0 \
-    libpqxx-6.4 \
+    libpqxx-6.4* \
+    libpq5 \
     curl \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*

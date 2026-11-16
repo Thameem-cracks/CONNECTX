@@ -110,7 +110,7 @@ void WebSocketServer::on_accept(beast::error_code ec, tcp::socket socket) {
 
     // Each session is self-managing via shared_ptr
     auto session = std::make_shared<Session>(
-        std::move(socket), client_mgr_, msg_handler_);
+        std::move(socket), client_mgr_, msg_handler_, db_mgr_);
     session->start();
 
     // Continue accepting

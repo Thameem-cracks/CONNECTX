@@ -5,8 +5,9 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <unordered_map>
+#include <unordered_set>
 
-// Forward-declare pqxx types so the header compiles without pqxx installed
 namespace pqxx { class connection; }
 
 namespace connectx {
@@ -45,12 +46,11 @@ struct Conversation {
 };
 
 /**
- * @brief Thread-safe database access layer using libpqxx.
+ * @brief Thread-safe database access layer.
  *
- * Uses a simple connection-per-operation model for correctness.
- * A proper connection pool is left as a Phase 5 optimisation.
- *
- * All queries use parameterised statements to prevent SQL injection.
+ * Uses libpqxx parameterized queries against Supabase PostgreSQL when DATABASE_URL
+ * is available. Transparently falls back to an in-memory concurrent store when running
+ * in standalone/local demo mode without a live database connection.
  */
 class DatabaseManager {
 public:
@@ -109,6 +109,17 @@ private:
     mutable std::mutex       mutex_;
 
     std::unique_ptr<pqxx::connection> make_connection();
+
+    // In-memory fallback structures
+    std::unordered_map<std::string, UserProfile>                   mem_profiles_;
+    std::unordered_map<std::string, ChatRoom>                      mem_rooms_;
+    std::unordered_map<std::string, std::unordered_set<std::string>> mem_room_members_; // room_id -> user_ids
+    std::unordered_map<std::string, Conversation>                  mem_conversations_;
+    std::unordered_map<std::string, std::unordered_set<std::string>> mem_conv_members_; // conv_id -> user_ids
+    std::unordered_map<std::string, std::vector<Message>>          mem_messages_;     // conv_id -> messages
+    std::unordered_map<std::string, std::unordered_set<std::string>> mem_reads_;        // msg_id -> user_ids who read
+
+    void init_default_data();
 };
 
 } // namespace connectx

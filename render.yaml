@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: connectx-backend
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    region: oregon
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: LOG_LEVEL
+        value: info
+      - key: MAX_CLIENTS
+        value: 1000
+      - key: MAX_MESSAGE_SIZE_BYTES
+        value: 65536
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_JWKS_URL
+        sync: false

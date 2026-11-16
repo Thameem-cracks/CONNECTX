@@ -56,6 +56,10 @@ void MessageHandler::dispatch(std::shared_ptr<Session> session, const std::strin
         else if (type == "join_room")       handle_join_room(session, msg);
         else if (type == "leave_room")      handle_leave_room(session, msg);
         else if (type == "create_room")     handle_create_room(session, msg);
+        else if (type == "list_rooms" || type == "get_rooms") handle_list_rooms(session, msg);
+        else if (type == "get_room_members") handle_get_room_members(session, msg);
+        else if (type == "mark_read")       handle_mark_read(session, msg);
+        else if (type == "get_unread_count") handle_unread_count(session, msg);
         else if (type == "typing_start")    handle_typing_start(session, msg);
         else if (type == "typing_stop")     handle_typing_stop(session, msg);
         else if (type == "load_history")    handle_load_history(session, msg);
@@ -132,6 +136,17 @@ void MessageHandler::handle_authenticate(std::shared_ptr<Session> session,
     auto ack = json_utils::make_response("authenticated", data).dump();
     session->send(std::make_shared<std::string>(std::move(ack)));
 
+    // Broadcast user online event to other connected clients
+    json online_ev = {
+        {"type", "user_online"},
+        {"data", {
+            {"user_id",      result.user_id},
+            {"username",     result.username},
+            {"display_name", result.display_name}
+        }}
+    };
+    client_mgr_->broadcast(std::make_shared<std::string>(online_ev.dump()));
+
     Logger::info("Session {} authenticated as user {}", session->session_id(),
                  result.user_id);
 }
@@ -162,7 +177,10 @@ void MessageHandler::handle_private_message(std::shared_ptr<Session> session,
     if (!require_auth(session)) return;
 
     std::string recipient_id = json_utils::get_string(msg, "recipient_id");
-    std::string content      = json_utils::get_string(msg, "content");
+    if (recipient_id.empty()) {
+        recipient_id = json_utils::get_string(msg, "recipient_user_id");
+    }
+    std::string content = json_utils::get_string(msg, "content");
 
     if (recipient_id.empty() || content.empty()) {
         send_error(session, "missing_fields",
@@ -267,6 +285,75 @@ void MessageHandler::handle_load_history(std::shared_ptr<Session> session,
 
     chat_mgr_->handle_load_history(conversation_id, session->user_id(),
                                     session->session_id(), limit, before_id);
+}
+
+void MessageHandler::handle_list_rooms(std::shared_ptr<Session> session,
+                                       const json& /*msg*/) {
+    auto rooms = db_mgr_->list_rooms();
+    json rooms_arr = json::array();
+    for (const auto& r : rooms) {
+        rooms_arr.push_back({
+            {"id",          r.id},
+            {"name",        r.name},
+            {"description", r.description},
+            {"created_by",  r.created_by},
+            {"created_at",  r.created_at}
+        });
+    }
+    json res = {
+        {"type",  "room_list"},
+        {"rooms", rooms_arr}
+    };
+    session->send(std::make_shared<std::string>(res.dump()));
+}
+
+void MessageHandler::handle_get_room_members(std::shared_ptr<Session> session,
+                                             const json& msg) {
+    std::string room_id = json_utils::get_string(msg, "room_id");
+    if (room_id.empty()) {
+        send_error(session, "missing_fields", "get_room_members requires 'room_id'");
+        return;
+    }
+    auto members = db_mgr_->get_room_members(room_id);
+    json members_arr = json::array();
+    for (const auto& m : members) {
+        members_arr.push_back({
+            {"id",           m.id},
+            {"username",     m.username},
+            {"display_name", m.display_name},
+            {"avatar_url",   m.avatar_url},
+            {"is_online",    client_mgr_->is_user_online(m.id)}
+        });
+    }
+    json res = {
+        {"type",    "room_members"},
+        {"room_id", room_id},
+        {"members", members_arr}
+    };
+    session->send(std::make_shared<std::string>(res.dump()));
+}
+
+void MessageHandler::handle_mark_read(std::shared_ptr<Session> session,
+                                      const json& msg) {
+    if (!require_auth(session)) return;
+    std::string message_id = json_utils::get_string(msg, "message_id");
+    if (!message_id.empty()) {
+        db_mgr_->mark_read(message_id, session->user_id());
+    }
+}
+
+void MessageHandler::handle_unread_count(std::shared_ptr<Session> session,
+                                        const json& msg) {
+    if (!require_auth(session)) return;
+    std::string conversation_id = json_utils::get_string(msg, "conversation_id");
+    if (conversation_id.empty()) return;
+    int count = db_mgr_->unread_count(conversation_id, session->user_id());
+    json res = {
+        {"type",            "unread_count"},
+        {"conversation_id", conversation_id},
+        {"count",           count}
+    };
+    session->send(std::make_shared<std::string>(res.dump()));
 }
 
 void MessageHandler::handle_ping(std::shared_ptr<Session> session,

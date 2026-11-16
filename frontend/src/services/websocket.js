@@ -1,13 +1,13 @@
 /**
  * ConnectX WebSocket Service
  *
- * Manages the WebSocket connection to the C++ backend.
+ * Manages the WebSocket connection to the C++ Boost.Beast backend.
  * Features:
  *   - Automatic reconnection with exponential backoff
  *   - Authentication handshake
  *   - Event-based message dispatch
  *   - Duplicate message prevention (via msg id deduplication)
- *   - Graceful close
+ *   - Graceful keepalive ping/pong
  */
 
 import { getAccessToken } from '../auth/session.js';
@@ -35,16 +35,13 @@ class WebSocketService {
 
   async _connect() {
     const token = await getAccessToken();
-    if (!token) {
-      console.warn('[WS] No auth token available – connecting in unauthenticated mode.');
-    }
 
     this._emit('status', { status: 'connecting' });
 
     try {
       this.ws = new WebSocket(WS_URL);
     } catch (e) {
-      console.error('[WS] Connection attempt failed:', e);
+      console.warn('[WS] Socket instantiation failed:', e);
       this._scheduleReconnect();
       return;
     }
@@ -70,10 +67,10 @@ class WebSocketService {
     this.ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
-        // Deduplicate messages by id if present
-        if (msg.message?.id) {
-          if (this.seenIds.has(msg.message.id)) return;
-          this.seenIds.add(msg.message.id);
+        const msgId = msg.data?.id || msg.message?.id || msg.id;
+        if (msgId) {
+          if (this.seenIds.has(msgId)) return;
+          this.seenIds.add(msgId);
           if (this.seenIds.size > 1000) {
             const arr = Array.from(this.seenIds);
             this.seenIds = new Set(arr.slice(-500));
@@ -86,7 +83,7 @@ class WebSocketService {
     };
 
     this.ws.onerror = (err) => {
-      console.error('[WS] Socket error:', err);
+      console.warn('[WS] Socket event error:', err);
       this._emit('status', { status: 'error' });
     };
 
@@ -108,6 +105,14 @@ class WebSocketService {
       this._connect();
     }, this.reconnectDelay);
     this.reconnectDelay = Math.min(this.reconnectDelay * 2, MAX_RECONNECT_DELAY_MS);
+  }
+
+  /** Trigger authentication on an already-open connection */
+  async reauthenticate() {
+    const token = await getAccessToken();
+    if (token && this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.send({ type: 'authenticate', token });
+    }
   }
 
   /** Send a JSON payload to the C++ server */
