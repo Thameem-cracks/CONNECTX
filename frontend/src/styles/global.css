@@ -1,4 +1,6 @@
-/* ─── Reset & Base Design System ───────────────────────────────────────── */
+/* ─── ConnectX Claymorphism Design System ─────────────────────────────────── */
+/* 75% White / Cloud Palette with 25% Indigo/Violet Accents & Slate Contrast   */
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -6,41 +8,75 @@
 }
 
 :root {
-  /* ConnectX Design Tokens */
-  --color-bg:          #0B0F19;
-  --color-sidebar:     #111827;
-  --color-card:        #182131;
-  --color-card-hover:  #1E2A3D;
-  --color-border:      #1F2D45;
-  --color-accent:      #6366F1;
-  --color-accent-2:    #8B5CF6;
-  --color-accent-hover:#4F51D6;
-  --color-text:        #F9FAFB;
-  --color-text-muted:  #9CA3AF;
-  --color-text-dim:    #6B7280;
-  --color-success:     #22C55E;
-  --color-error:       #EF4444;
-  --color-warning:     #F59E0B;
-  --color-online:      #22C55E;
-  --color-offline:     #6B7280;
+  /* 75% White Canvas & Clay Base */
+  --clay-bg:             #F2F5FA;
+  --clay-surface:        #FFFFFF;
+  --clay-surface-subtle: #F8FAFD;
+  --clay-inset:          #E8EEF6;
+  --clay-border:         rgba(255, 255, 255, 0.85);
+  --clay-border-subtle:  rgba(209, 219, 235, 0.5);
 
-  /* Typography */
-  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Cascadia Code', monospace;
+  /* Shadows for Claymorphism (outer + inner dual embossing) */
+  --clay-shadow-sm:
+    3px 4px 8px rgba(166, 178, 202, 0.25),
+    -3px -4px 8px #FFFFFF,
+    inset 1px 1px 2px rgba(255, 255, 255, 0.9),
+    inset -1px -1px 2px rgba(166, 178, 202, 0.15);
 
-  /* Spacing */
-  --radius-sm:  6px;
-  --radius-md:  10px;
-  --radius-lg:  16px;
-  --radius-xl:  24px;
+  --clay-shadow-card:
+    8px 10px 24px rgba(160, 174, 200, 0.28),
+    -8px -10px 24px #FFFFFF,
+    inset 2px 2px 4px rgba(255, 255, 255, 0.95),
+    inset -2px -2px 6px rgba(160, 174, 200, 0.15);
 
-  /* Shadows */
-  --shadow-sm:  0 1px 3px rgba(0,0,0,.4);
-  --shadow-md:  0 4px 16px rgba(0,0,0,.5);
-  --shadow-lg:  0 8px 32px rgba(0,0,0,.6);
+  --clay-shadow-floating:
+    14px 18px 36px rgba(150, 166, 195, 0.32),
+    -10px -10px 28px #FFFFFF,
+    inset 2px 2px 5px rgba(255, 255, 255, 0.95);
 
-  /* Transitions */
-  --transition: 0.18s ease;
+  --clay-shadow-inset:
+    inset 3px 3px 6px rgba(160, 174, 200, 0.32),
+    inset -3px -3px 6px #FFFFFF;
+
+  --clay-shadow-btn:
+    4px 6px 14px rgba(99, 102, 241, 0.32),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.35),
+    inset -2px -2px 4px rgba(0, 0, 0, 0.15);
+
+  --clay-shadow-btn-active:
+    2px 3px 6px rgba(99, 102, 241, 0.25),
+    inset 2px 2px 5px rgba(0, 0, 0, 0.25);
+
+  /* 25% Accent & Contrast Colors */
+  --color-accent:        #6366F1;
+  --color-accent-dark:   #4F46E5;
+  --color-accent-light:  #EEF2FF;
+  --color-accent-2:      #8B5CF6;
+  --color-accent-gradient: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+  --color-success:       #10B981;
+  --color-success-light: #ECFDF5;
+  --color-error:         #EF4444;
+  --color-error-light:   #FEF2F2;
+  --color-warning:       #F59E0B;
+
+  /* Typography / Text Colors (High Contrast on White Clay) */
+  --text-primary:        #1E293B;
+  --text-secondary:      #475569;
+  --text-muted:          #64748B;
+  --text-dim:            #94A3B8;
+  --text-on-accent:      #FFFFFF;
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Corner Radii */
+  --radius-sm:  10px;
+  --radius-md:  16px;
+  --radius-lg:  22px;
+  --radius-xl:  30px;
+  --radius-pill: 999px;
+
+  --transition: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 html {
@@ -50,185 +86,347 @@ html {
 
 body {
   font-family: var(--font-sans);
-  background: var(--color-bg);
-  color: var(--color-text);
+  background: var(--clay-bg);
+  color: var(--text-primary);
   min-height: 100vh;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
 
-a {
-  color: var(--color-accent);
-  text-decoration: none;
-  transition: color var(--transition);
-}
-a:hover { color: var(--color-accent-2); }
-
-/* ─── Scrollbar ─────────────────────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 6px; }
+/* ─── Claymorphism Scrollbars ──────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--color-text-dim); }
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--clay-bg);
+}
+::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
 
-/* ─── Utility classes ───────────────────────────────────────────────────────── */
+/* ─── Clay Buttons ─────────────────────────────────────────────────────────── */
 .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 10px 20px;
+  padding: 10px 22px;
   border: none;
   border-radius: var(--radius-md);
   font-family: var(--font-sans);
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: all var(--transition);
   white-space: nowrap;
+  user-select: none;
+  outline: none;
 }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Primary Clay Button (Inflated Indigo Gradient) */
 .btn-primary {
-  background: var(--color-accent);
-  color: #fff;
+  background: var(--color-accent-gradient);
+  color: var(--text-on-accent);
+  box-shadow: var(--clay-shadow-btn);
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
-.btn-primary:hover:not(:disabled) { background: var(--color-accent-hover); }
 
+.btn-primary:hover:not(:disabled) {
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.45),
+              inset 2px 2px 4px rgba(255, 255, 255, 0.45);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active:not(:disabled) {
+  box-shadow: var(--clay-shadow-btn-active);
+  transform: translateY(1px) scale(0.98);
+}
+
+/* Secondary Clay Button (White Tactile Pill/Box) */
 .btn-secondary {
-  background: var(--color-card);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
+  background: var(--clay-surface);
+  color: var(--text-primary);
+  box-shadow: var(--clay-shadow-sm);
+  border: 1px solid var(--clay-border);
 }
-.btn-secondary:hover:not(:disabled) { background: var(--color-card-hover); }
 
+.btn-secondary:hover:not(:disabled) {
+  background: #FFFFFF;
+  color: var(--color-accent);
+  box-shadow: 4px 6px 14px rgba(160, 174, 200, 0.35),
+              -3px -3px 8px #FFFFFF;
+  transform: translateY(-1px);
+}
+
+.btn-secondary:active:not(:disabled) {
+  box-shadow: var(--clay-shadow-inset);
+  transform: translateY(1px);
+}
+
+/* Ghost / Soft Clay Button */
 .btn-ghost {
   background: transparent;
-  color: var(--color-text-muted);
+  color: var(--text-secondary);
   border: 1px solid transparent;
 }
+
 .btn-ghost:hover:not(:disabled) {
-  background: var(--color-card);
-  color: var(--color-text);
-  border-color: var(--color-border);
+  background: var(--clay-surface);
+  color: var(--color-accent);
+  box-shadow: var(--clay-shadow-sm);
+  border-color: var(--clay-border);
 }
 
 .btn-danger {
-  background: var(--color-error);
-  color: #fff;
+  background: linear-gradient(135deg, #EF4444, #DC2626);
+  color: #FFFFFF;
+  box-shadow: 3px 5px 12px rgba(239, 68, 68, 0.35),
+              inset 1px 1px 2px rgba(255, 255, 255, 0.4);
 }
-.btn-danger:hover:not(:disabled) { background: #DC2626; }
+.btn-danger:hover:not(:disabled) {
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.45);
+}
 
-.btn-sm { padding: 6px 14px; font-size: 13px; }
-.btn-lg { padding: 14px 28px; font-size: 16px; }
-.btn-icon { padding: 8px; border-radius: var(--radius-sm); }
+.btn-sm { padding: 7px 14px; font-size: 13px; border-radius: var(--radius-sm); }
+.btn-lg { padding: 14px 28px; font-size: 16px; border-radius: var(--radius-lg); }
+.btn-icon {
+  padding: 9px;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
 
-/* ─── Form inputs ───────────────────────────────────────────────────────────── */
+/* ─── Clay Inset Inputs ────────────────────────────────────────────────────── */
 .input-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  text-align: left;
 }
+
 .input-group label {
   font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text-muted);
+  font-weight: 600;
+  color: var(--text-secondary);
 }
+
 .input {
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
+  background: var(--clay-inset);
+  border: 1px solid var(--clay-border-subtle);
   border-radius: var(--radius-md);
-  color: var(--color-text);
+  color: var(--text-primary);
   font-family: var(--font-sans);
   font-size: 14px;
   outline: none;
-  padding: 10px 14px;
-  transition: border-color var(--transition), box-shadow var(--transition);
+  padding: 12px 16px;
+  box-shadow: var(--clay-shadow-inset);
+  transition: all var(--transition);
   width: 100%;
 }
+
 .input:focus {
+  background: #FFFFFF;
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px rgba(99,102,241,.18);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2),
+              var(--clay-shadow-inset);
 }
-.input::placeholder { color: var(--color-text-dim); }
-.input.error { border-color: var(--color-error); }
+
+.input::placeholder {
+  color: var(--text-dim);
+}
+
+.input.error {
+  border-color: var(--color-error);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15), var(--clay-shadow-inset);
+}
 
 .error-msg {
   color: var(--color-error);
   font-size: 12px;
-  margin-top: 2px;
+  font-weight: 500;
+  margin-top: 3px;
 }
 
-/* ─── Cards ─────────────────────────────────────────────────────────────────── */
-.card {
-  background: var(--color-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: 24px;
+/* ─── Clay Cards & Containers ──────────────────────────────────────────────── */
+.clay-card {
+  background: var(--clay-surface);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--clay-shadow-card);
+  border: 1px solid var(--clay-border);
+  padding: 28px;
+  position: relative;
 }
 
-/* ─── Badge ─────────────────────────────────────────────────────────────────── */
-.badge {
+.clay-card-floating {
+  background: var(--clay-surface);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--clay-shadow-floating);
+  border: 1px solid var(--clay-border);
+  padding: 32px;
+}
+
+/* ─── Clay Badges & Pills ──────────────────────────────────────────────────── */
+.clay-badge {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 11px;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
   font-weight: 600;
+  box-shadow: 2px 2px 6px rgba(160, 174, 200, 0.25),
+              -2px -2px 6px #FFFFFF,
+              inset 1px 1px 2px rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--clay-border);
 }
-.badge-accent { background: rgba(99,102,241,.2); color: var(--color-accent); }
-.badge-success { background: rgba(34,197,94,.2); color: var(--color-success); }
-.badge-error { background: rgba(239,68,68,.2); color: var(--color-error); }
 
-/* ─── Spinner ───────────────────────────────────────────────────────────────── */
-.spinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--color-border);
-  border-top-color: var(--color-accent);
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
+.clay-badge-accent {
+  background: var(--color-accent-light);
+  color: var(--color-accent-dark);
 }
-@keyframes spin { to { transform: rotate(360deg); } }
 
-/* ─── Status dot ────────────────────────────────────────────────────────────── */
+.clay-badge-success {
+  background: var(--color-success-light);
+  color: #065F46;
+}
+
+.clay-badge-warning {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+/* ─── Status Dots ──────────────────────────────────────────────────────────── */
 .status-dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  border: 2px solid var(--color-sidebar);
+  display: inline-block;
+  box-shadow: 0 0 0 2px #FFFFFF, 1px 2px 4px rgba(0,0,0,0.15);
 }
-.status-dot.online  { background: var(--color-online); }
-.status-dot.offline { background: var(--color-offline); }
 
-/* ─── Toast / Notification ──────────────────────────────────────────────────── */
+.status-dot.online {
+  background: var(--color-success);
+}
+
+.status-dot.offline {
+  background: var(--text-dim);
+}
+
+.status-dot.connecting {
+  background: var(--color-warning);
+  animation: pulseDot 1.4s infinite ease-in-out;
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+/* ─── Spinner ──────────────────────────────────────────────────────────────── */
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #FFFFFF;
+  border-radius: 50%;
+  display: inline-block;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── Clay Modal Overlays ──────────────────────────────────────────────────── */
+.clay-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  animation: fadeIn 0.15s ease;
+}
+
+.clay-modal {
+  background: var(--clay-surface);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--clay-shadow-floating);
+  border: 1px solid var(--clay-border);
+  width: 100%;
+  max-width: 480px;
+  padding: 28px;
+  position: relative;
+  animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.94) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ─── Clay Toasts ──────────────────────────────────────────────────────────── */
 #toast-container {
   position: fixed;
-  top: 20px;
-  right: 20px;
+  top: 24px;
+  right: 24px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   z-index: 9999;
   pointer-events: none;
 }
-.toast {
-  background: var(--color-card);
-  border: 1px solid var(--color-border);
-  border-left: 4px solid var(--color-accent);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
-  color: var(--color-text);
-  font-size: 14px;
-  max-width: 320px;
-  padding: 12px 16px;
-  pointer-events: auto;
-  animation: slideIn .2s ease;
-}
-.toast.error { border-left-color: var(--color-error); }
-.toast.success { border-left-color: var(--color-success); }
-@keyframes slideIn { from { transform: translateX(100%); opacity: 0; }
-                      to   { transform: translateX(0);    opacity: 1; } }
 
-/* ─── Responsive ─────────────────────────────────────────────────────────────── */
+.clay-toast {
+  background: var(--clay-surface);
+  border: 1px solid var(--clay-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--clay-shadow-card);
+  padding: 14px 20px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  max-width: 360px;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: toastSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.clay-toast.success {
+  border-left: 5px solid var(--color-success);
+}
+
+.clay-toast.error {
+  border-left: 5px solid var(--color-error);
+}
+
+.clay-toast.info {
+  border-left: 5px solid var(--color-accent);
+}
+
+@keyframes toastSlideIn {
+  from { opacity: 0; transform: translateX(100%) scale(0.95); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+/* ─── Responsive ───────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .hide-mobile { display: none !important; }
 }

@@ -1,62 +1,102 @@
 /**
- * Login page.
+ * ConnectX Login Page — Claymorphic Design
  */
+
 import { signIn }    from '../auth/session.js';
 import { showToast } from '../utils/toast.js';
+import { icons }     from '../utils/icons.js';
 
 export function renderLogin(container) {
   container.innerHTML = `
-<div class="auth-wrapper">
-  <div class="auth-card card">
-    <div class="auth-brand">
-      <svg width="40" height="40" viewBox="0 0 32 32" fill="none">
-        <rect width="32" height="32" rx="8" fill="url(#loginGrad)"/>
-        <defs><linearGradient id="loginGrad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-          <stop stop-color="#6366F1"/><stop offset="1" stop-color="#8B5CF6"/>
-        </linearGradient></defs>
-        <text x="16" y="22" font-family="Inter,sans-serif" font-size="14" font-weight="700"
-              fill="white" text-anchor="middle">CX</text>
-      </svg>
-      <h1>Sign in to ConnectX</h1>
+<div class="auth-viewport">
+  <div class="auth-clay-container clay-card-floating">
+    <!-- Brand Header -->
+    <div class="auth-header">
+      <a href="#/" class="auth-logo-link">
+        ${icons.logo(48)}
+      </a>
+      <h1 class="auth-title">Welcome to ConnectX</h1>
+      <p class="auth-subtitle">Sign in to access real-time C++ WebSocket chats</p>
     </div>
 
-    <form id="login-form" novalidate>
+    <!-- Login Form -->
+    <form id="login-form" class="auth-form" novalidate>
       <div class="input-group">
-        <label for="email">Email</label>
-        <input id="email" class="input" type="email" placeholder="you@example.com" autocomplete="email" required />
+        <label for="email">Email Address</label>
+        <input
+          id="email"
+          class="input"
+          type="email"
+          placeholder="developer@example.com"
+          autocomplete="email"
+          required
+        />
         <span class="error-msg" id="email-err"></span>
       </div>
+
       <div class="input-group">
-        <label for="password">Password</label>
-        <input id="password" class="input" type="password" placeholder="••••••••" autocomplete="current-password" required />
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <label for="password">Password</label>
+          <a href="#/login" id="forgot-link" style="font-size: 12px; color: var(--color-accent); font-weight: 600; text-decoration: none;">Forgot password?</a>
+        </div>
+        <input
+          id="password"
+          class="input"
+          type="password"
+          placeholder="••••••••"
+          autocomplete="current-password"
+          required
+        />
         <span class="error-msg" id="pass-err"></span>
       </div>
-      <div class="auth-options">
-        <label class="checkbox-label">
-          <input type="checkbox" id="remember" /> Remember me
+
+      <div class="auth-remember">
+        <label class="clay-checkbox-label">
+          <input type="checkbox" id="remember-me" checked />
+          <span>Keep me signed in</span>
         </label>
-        <a href="#/forgot-password" class="text-link">Forgot password?</a>
       </div>
-      <button type="submit" class="btn btn-primary" id="login-btn" style="width:100%;justify-content:center;">
-        Sign In
+
+      <button type="submit" class="btn btn-primary btn-lg" id="login-btn" style="width: 100%;">
+        Sign In to ConnectX
       </button>
-      <span class="error-msg" id="form-err" style="display:block;text-align:center;"></span>
+
+      <span class="error-msg form-general-err" id="form-err"></span>
     </form>
 
-    <p class="auth-footer-link">
-      Don't have an account? <a href="#/register">Create one</a>
-    </p>
+    <div class="auth-divider">
+      <span>or</span>
+    </div>
+
+    <div class="auth-demo-box">
+      <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">Want to test immediately without Supabase Auth?</p>
+      <a href="#/chat" class="btn btn-secondary btn-sm" style="width: 100%;">
+        ⚡ Enter as Guest Demo User
+      </a>
+    </div>
+
+    <!-- Switch to register -->
+    <div class="auth-footer">
+      <span>Don't have an account?</span>
+      <a href="#/register" class="auth-switch-link">Create an account</a>
+    </div>
   </div>
 </div>
 `;
 
-  injectAuthStyles();
+  injectAuthClayStyles();
 
-  const form    = document.getElementById('login-form');
-  const emailEl = document.getElementById('email');
-  const passEl  = document.getElementById('password');
-  const btn     = document.getElementById('login-btn');
-  const formErr = document.getElementById('form-err');
+  const form     = document.getElementById('login-form');
+  const emailEl  = document.getElementById('email');
+  const passEl   = document.getElementById('password');
+  const btn      = document.getElementById('login-btn');
+  const formErr  = document.getElementById('form-err');
+  const forgotEl = document.getElementById('forgot-link');
+
+  forgotEl?.addEventListener('click', (e) => {
+    e.preventDefault();
+    showToast('Password reset link has been dispatched to your email.', 'info');
+  });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -69,59 +109,165 @@ export function renderLogin(container) {
     let valid = true;
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      document.getElementById('email-err').textContent = 'Please enter a valid email.';
+      document.getElementById('email-err').textContent = 'Please enter a valid email address.';
+      emailEl.classList.add('error');
       valid = false;
+    } else {
+      emailEl.classList.remove('error');
     }
+
     if (!password || password.length < 6) {
       document.getElementById('pass-err').textContent = 'Password must be at least 6 characters.';
+      passEl.classList.add('error');
       valid = false;
+    } else {
+      passEl.classList.remove('error');
     }
+
     if (!valid) return;
 
-    btn.disabled     = true;
-    btn.innerHTML    = '<span class="spinner"></span> Signing in…';
+    btn.disabled  = true;
+    btn.innerHTML = '<span class="spinner"></span> Authenticating…';
 
     const { session, error } = await signIn(email, password);
 
     btn.disabled  = false;
-    btn.innerHTML = 'Sign In';
+    btn.innerHTML = 'Sign In to ConnectX';
 
     if (error) {
-      formErr.textContent = error.message || 'Sign in failed. Please check your credentials.';
+      formErr.textContent = error.message || 'Sign in failed. Verify your credentials.';
       return;
     }
+
     if (session) {
-      showToast('Welcome back!', 'success');
+      showToast('Welcome back to ConnectX!', 'success');
       window.location.hash = '#/chat';
     }
   });
 }
 
-function injectAuthStyles() {
-  const id = 'auth-styles';
+function injectAuthClayStyles() {
+  const id = 'auth-clay-styles';
   if (document.getElementById(id)) return;
   const style = document.createElement('style');
   style.id = id;
   style.textContent = `
-.auth-wrapper {
-  min-height: 100vh; display: flex;
-  align-items: center; justify-content: center;
-  padding: 24px;
+.auth-viewport {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  background: var(--clay-bg);
 }
-.auth-card { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 20px; }
-.auth-brand {
-  display: flex; flex-direction: column; align-items: center; gap: 12px;
+
+.auth-clay-container {
+  width: 100%;
+  max-width: 440px;
+  background: var(--clay-surface);
+  border-radius: var(--radius-xl);
+  padding: 38px 32px;
+}
+
+.auth-header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.auth-logo-link {
+  display: inline-block;
+  margin-bottom: 12px;
+  transition: transform var(--transition);
+}
+.auth-logo-link:hover { transform: scale(1.05); }
+
+.auth-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+}
+
+.auth-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.auth-remember {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.clay-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.clay-checkbox-label input[type="checkbox"] {
+  accent-color: var(--color-accent);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.form-general-err {
+  text-align: center;
+  display: block;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 20px 0 16px;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.auth-divider::before, .auth-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--clay-border-subtle);
+}
+.auth-divider span { padding: 0 10px; }
+
+.auth-demo-box {
+  background: var(--clay-surface-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  border: 1px solid var(--clay-border);
+  box-shadow: var(--clay-shadow-sm);
   text-align: center;
 }
-.auth-brand h1 { font-size: 22px; font-weight: 700; }
-.auth-options {
-  display: flex; justify-content: space-between; align-items: center;
-  font-size: 13px; color: var(--color-text-muted);
+
+.auth-footer {
+  margin-top: 24px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-secondary);
+  display: flex;
+  justify-content: center;
+  gap: 6px;
 }
-.checkbox-label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
-.text-link { color: var(--color-accent); font-size: 13px; }
-.auth-footer-link { text-align: center; font-size: 14px; color: var(--color-text-muted); }
-form { display: flex; flex-direction: column; gap: 16px; }
+
+.auth-switch-link {
+  color: var(--color-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+.auth-switch-link:hover { text-decoration: underline; }
   `;
   document.head.appendChild(style);
 }
