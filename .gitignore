@@ -1,0 +1,44 @@
+# Node / Frontend
+node_modules/
+dist/
+.pnpm-store/
+frontend/.env
+frontend/.env.local
+frontend/.env.production
+
+# C++ Build
+backend/build/
+backend/vcpkg_installed/
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Environment files (NEVER commit real credentials)
+.env
+.env.*
+!.env.example
+
+# VS / JetBrains
+.vs/
+.vscode/settings.json
+*.user
+*.suo
+.idea/
+cmake-build-*/
+
+# macOS
+.DS_Store
+
+# Docker
+.dockerignore
+
+# Logs
+*.log
+logs/

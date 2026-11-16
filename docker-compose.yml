@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - DATABASE_URL=${DATABASE_URL}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_JWKS_URL=${SUPABASE_JWKS_URL}
+      - MAX_CLIENTS=${MAX_CLIENTS:-1000}
+      - MAX_MESSAGE_SIZE_BYTES=${MAX_MESSAGE_SIZE_BYTES:-65536}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - connectx-net
+
+networks:
+  connectx-net:
+    driver: bridge
